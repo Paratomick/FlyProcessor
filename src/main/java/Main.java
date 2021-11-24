@@ -14,6 +14,9 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 public class Main {
     File dir;
@@ -43,14 +46,53 @@ public class Main {
         if (fileChooser.getSelectedFile() == null) return;
         dir = fileChooser.getSelectedFile().getParentFile();
         dirOutput = new File(dir.getPath() + "/output");
+        System.out.printf("Du hast %s ausgewählt. %s ist der Ordner.\n", fileChooser.getSelectedFile().getPath(), dir);
 
         if (dir.isDirectory()) {
+            System.out.print("Es ist auch ein Ordner.\n");
             if (!dirOutput.exists()) {
                 dirOutput.mkdir();
+                System.out.print("Der Output Ordner wird erstellt.\n");
             }
-            File[] files = dir.listFiles();
-            if(files != null && files[0] != null && files[0].exists() && files[0].isFile()) {
-                slideName = files[0].getName().split("_20")[0];
+            File[] dirFiles = dir.listFiles();
+            File[] emptyFileArray = new File[1];
+            ArrayList<File> fileList = new ArrayList<>();
+            for (File f : dirFiles) {
+                if (!f.isDirectory()) {
+                    fileList.add(f);
+                }
+            }
+            File[] files = fileList.toArray(emptyFileArray);
+
+
+            if (files != null) {
+                System.out.print("Die Liste files ist nicht gleich null. ");
+                if (files[0] != null) {
+                    System.out.print("files[0] ist auch nicht gleich null ");
+                    if (files[0].exists()) {
+                        System.out.print("und existiert auch,");
+                        if (files[0].isFile()) {
+                            System.out.print("es ist sogar ein File. \n");
+                            slideName = files[0].getName().split("_20")[0];
+                            System.out.printf("The new SlideName will be %s. There are %d file in the folder.\n", slideName, files.length);
+                        } else {
+                            System.out.print("es ist allerdings kein File. Suche nach File.\n");
+                            for (File f : files) {
+                                if (f.exists() && f.isFile()) {
+                                    slideName = files[0].getName().split("_20")[0];
+                                    System.out.printf("Ein passendes File gefunden. \nThe new SlideName will be %s. There are %d file in the folder.\n", slideName, files.length);
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.print("aber existiert nicht. \n");
+                    }
+                } else {
+                    System.out.print("files[0] ist allerdings gleich null. \n");
+                }
+            } else {
+                System.out.print("Die Liste files ist gleich null. \n");
             }
 
             initPresentation(files.length / maxPerSlide + 1);
@@ -62,10 +104,12 @@ public class Main {
                     doStuffToPicture(img);
                 }
             }
+        } else {
+            System.out.print("Es ist aber gar kein Ordner.\n");
         }
         try {
             writePresentation();
-        } catch (Exception e) {
+        } catch (Exception ignore) {
         }
         fileChooser.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
         frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
@@ -97,21 +141,11 @@ public class Main {
         imgs[1] = WindowManager.getImage("C2-MAX_" + img.getTitle());
         imgs[2] = WindowManager.getImage("C1-MAX_" + img.getTitle());
 
+        // ----- MERGE -----
         //ImagePlus is = RGBStackMerge.mergeChannels(new ImagePlus[] {imgR, imgG, imgB}, true);
         ImageStack iss = RGBStackMerge.mergeStacks(imgs[0].getStack(), imgs[1].getStack(), imgs[2].getStack(), true);
         imgs[3] = new ImagePlus("MERGE-MAX_" + img.getTitle(), iss);
         imgs[3].show();
-
-        MyWindowLevelTool windowLevelTool = new MyWindowLevelTool();
-        for (int i = 0; i < 4; i++) {
-            IJ.run(imgs[i], "RGB Color", "");
-            windowLevelTool.setupImage(imgs[i], true);
-            windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
-            windowLevelTool.adjustWindowLevel(imgs[i], 0, 0);
-        }
-
-
-        System.out.println();
 
         String[] paths = new String[]{
                 dirOutput.getPath() + "\\" + imgs[0].getTitle().replace(".lsm", ".tif"),
@@ -120,6 +154,24 @@ public class Main {
                 dirOutput.getPath() + "\\" + imgs[3].getTitle().replace(".lsm", ".tif")
         };
 
+        // ----- SAVE -----
+        FileSaver saver;
+        for (int i = 0; i < 4; i++) {
+            // Save File
+            saver = new FileSaver(imgs[i]);
+            saver.saveAsTiff(paths[i]);
+        }
+
+        // ----- AUTO ADJUST -----
+        MyWindowLevelTool windowLevelTool = new MyWindowLevelTool();
+        for (int i = 0; i < 4; i++) {
+            IJ.run(imgs[i], "RGB Color", "");
+            windowLevelTool.setupImage(imgs[i], true);
+            windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
+            windowLevelTool.adjustWindowLevel(imgs[i], 0, 0);
+        }
+
+        // ----- PP -----
         try {
             if (!isOverview) {
                 pictureCounter++;
@@ -130,14 +182,13 @@ public class Main {
             int y = (pictureCounter % maxPerSlide) / picturesPerSlideWidth;
             int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
-            FileSaver saver;
             for (int i = 0; i < 4; i++) {
+                if(i == 2) continue;
                 // Save File
-                if (i == 2) continue;
                 saver = new FileSaver(imgs[i]);
-                saver.saveAsTiff(paths[i]);
+                saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
                 // Load File
-                XSLFPictureData pic = slideShow.addPicture(new File(paths[i]), PictureData.PictureType.TIFF);
+                XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
                 XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
                 pShape.setAnchor(new Rectangle(x * 118 + 10, y * 120 + 10, 113, 113));
             }
@@ -158,7 +209,7 @@ public class Main {
         XSLFSlideLayout xslfSlideLayout = slideMaster.getLayout(SlideLayout.TITLE);
         XSLFSlide xslfSlide = slideShow.createSlide(xslfSlideLayout);
         XSLFTextShape xslfTextShape = xslfSlide.getPlaceholder(0);
-        xslfSlide.getPlaceholder(1).clearText();
+        //xslfSlide.getPlaceholder(1).clearText();
         xslfTextShape.setText(slideName);
 
         currentSlides = new XSLFSlide[4][];
