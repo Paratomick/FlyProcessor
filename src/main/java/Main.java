@@ -4,6 +4,7 @@ import ij.ImageStack;
 import ij.WindowManager;
 import ij.io.FileSaver;
 import ij.plugin.RGBStackMerge;
+import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
 import org.apache.poi.sl.usermodel.PictureData;
 import org.apache.poi.xslf.usermodel.*;
@@ -15,8 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.stream.Stream;
+import java.util.List;
 
 public class Main {
     File dir;
@@ -117,9 +117,6 @@ public class Main {
     }
 
     public void doStuffToPicture(ImagePlus img) {
-
-        MyZProjector zProjector = new MyZProjector(img);
-
         String voxelSize = ((String) img.getProperty("Info")).split("Voxel_size_X: ")[1].split(" µm")[0];
         boolean isOverview = Double.parseDouble(voxelSize) > 0.15d;
 
@@ -128,35 +125,51 @@ public class Main {
             img.close();
             return;
         }
-        zProjector.run(1, Integer.parseInt(info), MyZProjector.MAX_METHOD);
-        ImagePlus imgZ = zProjector.getProjection();
+        ImagePlus imgZ = ZProjector.run(img, "max", 1, Integer.parseInt(info));
 
         RGBStackSplitter splitter = new RGBStackSplitter();
         splitter.split(imgZ);
         img.close();
 
+        // Load the images out of the shown pictures
         ImagePlus[] imgs = new ImagePlus[4];
-
         imgs[0] = WindowManager.getImage("C3-MAX_" + img.getTitle());
         imgs[1] = WindowManager.getImage("C2-MAX_" + img.getTitle());
         imgs[2] = WindowManager.getImage("C1-MAX_" + img.getTitle());
+        // Create a list with the index of every non-null image.
+        List<Integer> indexList = new ArrayList<>();
+        ImageStack[] imgStacks = new ImageStack[3];
+        for(int i = 0; i < 3; i++) {
+            if(imgs[i] != null) {
+                indexList.add(i);
+                imgStacks[i] = imgs[i].getStack();
+            } else {
+                imgStacks[i] = null;
+            }
+        }
+
 
         // ----- MERGE -----
-        //ImagePlus is = RGBStackMerge.mergeChannels(new ImagePlus[] {imgR, imgG, imgB}, true);
-        ImageStack iss = RGBStackMerge.mergeStacks(imgs[0].getStack(), imgs[1].getStack(), imgs[2].getStack(), true);
+        // Get size date
+        int w = imgStacks[indexList.get(0)].getWidth();
+        int h = imgStacks[indexList.get(0)].getHeight();
+        int s = imgStacks[indexList.get(0)].getSize();
+        // Merge
+        RGBStackMerge rgbStackMerge = new RGBStackMerge();
+        ImageStack iss = rgbStackMerge.mergeStacks(w, h, s, imgStacks[0], imgStacks[1], imgStacks[2], true);
+        // Put into imgs
         imgs[3] = new ImagePlus("MERGE-MAX_" + img.getTitle(), iss);
         imgs[3].show();
+        indexList.add(3);
 
-        String[] paths = new String[]{
-                dirOutput.getPath() + "\\" + imgs[0].getTitle().replace(".lsm", ".tif"),
-                dirOutput.getPath() + "\\" + imgs[1].getTitle().replace(".lsm", ".tif"),
-                dirOutput.getPath() + "\\" + imgs[2].getTitle().replace(".lsm", ".tif"),
-                dirOutput.getPath() + "\\" + imgs[3].getTitle().replace(".lsm", ".tif")
-        };
 
         // ----- SAVE -----
+        // Create filenames for savings
+        String[] paths = new String[4];
         FileSaver saver;
-        for (int i = 0; i < 4; i++) {
+        for(int i: indexList) {
+            // Create name
+            paths[i] = dirOutput.getPath() + "\\" + imgs[i].getTitle().replace(".lsm", ".tif");
             // Save File
             saver = new FileSaver(imgs[i]);
             saver.saveAsTiff(paths[i]);
@@ -164,7 +177,7 @@ public class Main {
 
         // ----- AUTO ADJUST -----
         MyWindowLevelTool windowLevelTool = new MyWindowLevelTool();
-        for (int i = 0; i < 4; i++) {
+        for (int i: indexList) {
             IJ.run(imgs[i], "RGB Color", "");
             windowLevelTool.setupImage(imgs[i], true);
             windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
@@ -182,7 +195,7 @@ public class Main {
             int y = (pictureCounter % maxPerSlide) / picturesPerSlideWidth;
             int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
-            for (int i = 0; i < 4; i++) {
+            for (int i: indexList) {
                 if(i == 2) continue;
                 // Save File
                 saver = new FileSaver(imgs[i]);
@@ -196,10 +209,10 @@ public class Main {
             System.err.println("Could not fine the pictures, that where just saved.");
         }
 
-        imgs[0].close();
-        imgs[1].close();
-        imgs[2].close();
-        imgs[3].close();
+        // Close all reamining ImageJs
+        for (int i: indexList) {
+            imgs[i].close();
+        }
     }
 
     public void initPresentation(int slides) {
