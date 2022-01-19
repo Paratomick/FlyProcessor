@@ -117,9 +117,11 @@ public class Main {
     }
 
     public void doStuffToPicture(ImagePlus img) {
+        // Determine if the img is an overview
         String voxelSize = ((String) img.getProperty("Info")).split("Voxel_size_X: ")[1].split(" µm")[0];
         boolean isOverview = Double.parseDouble(voxelSize) > 0.15d;
 
+        // Get the stackSize to run the ZProjector with
         String info = ((String) img.getProperty("Info")).split("Z_size:")[1].split("\n")[0];
         if (info.equals("1")) {
             img.close();
@@ -127,62 +129,55 @@ public class Main {
         }
         ImagePlus imgZ = ZProjector.run(img, "max", 1, Integer.parseInt(info));
 
+        // Split the open image into c1, c2, c3
         RGBStackSplitter splitter = new RGBStackSplitter();
         splitter.split(imgZ);
         img.close();
 
-        // Load the images out of the shown pictures
+        // Load the open images c1, c2, c3 into ImagePlus Classes
         ImagePlus[] imgs = new ImagePlus[4];
         imgs[0] = WindowManager.getImage("C3-MAX_" + img.getTitle());
         imgs[1] = WindowManager.getImage("C2-MAX_" + img.getTitle());
         imgs[2] = WindowManager.getImage("C1-MAX_" + img.getTitle());
         // Create a list with the index of every non-null image.
         List<Integer> indexList = new ArrayList<>();
+        for (int i = 0; i < 3; i++) if (imgs[i] != null) indexList.add(i);
+        // Convert c1, c2, c3 to RGB
+        indexList.forEach(i -> IJ.run(imgs[i], "RGB Color", ""));
+        // Get the Stacks of c1, c2, c3
         ImageStack[] imgStacks = new ImageStack[3];
-        for(int i = 0; i < 3; i++) {
-            if(imgs[i] != null) {
-                indexList.add(i);
-                imgStacks[i] = imgs[i].getStack();
-            } else {
-                imgStacks[i] = null;
-            }
-        }
-
+        indexList.forEach(i -> imgStacks[i] = imgs[i].getStack());
 
         // ----- MERGE -----
-        // Get size date
+        // Load the width, height and size of the first available c
         int w = imgStacks[indexList.get(0)].getWidth();
         int h = imgStacks[indexList.get(0)].getHeight();
         int s = imgStacks[indexList.get(0)].getSize();
-        // Merge
-        RGBStackMerge rgbStackMerge = new RGBStackMerge();
-        ImageStack iss = rgbStackMerge.mergeStacks(w, h, s, imgStacks[0], imgStacks[1], imgStacks[2], true);
-        // Put into imgs
+        // Merge c1, c2, c3 to one img merge
+        ImageStack iss = new RGBStackMerge().mergeStacks(w, h, s, imgStacks[0], imgStacks[1], imgStacks[2], true);
+        // Put merge into the array and indexList
         imgs[3] = new ImagePlus("MERGE-MAX_" + img.getTitle(), iss);
         imgs[3].show();
         indexList.add(3);
 
-
         // ----- SAVE -----
-        // Create filenames for savings
+        // Create filenames for savings and save
         String[] paths = new String[4];
-        FileSaver saver;
-        for(int i: indexList) {
+        indexList.forEach(i -> {
             // Create name
             paths[i] = dirOutput.getPath() + "\\" + imgs[i].getTitle().replace(".lsm", ".tif");
             // Save File
-            saver = new FileSaver(imgs[i]);
+            FileSaver saver = new FileSaver(imgs[i]);
             saver.saveAsTiff(paths[i]);
-        }
+        });
 
         // ----- AUTO ADJUST -----
         MyWindowLevelTool windowLevelTool = new MyWindowLevelTool();
-        for (int i: indexList) {
-            IJ.run(imgs[i], "RGB Color", "");
+        indexList.forEach(i -> {
             windowLevelTool.setupImage(imgs[i], true);
             windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
             windowLevelTool.adjustWindowLevel(imgs[i], 0, 0);
-        }
+        });
 
         // ----- PP -----
         try {
@@ -195,10 +190,10 @@ public class Main {
             int y = (pictureCounter % maxPerSlide) / picturesPerSlideWidth;
             int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
-            for (int i: indexList) {
-                if(i == 2) continue;
+            for (int i : indexList) {
+                if (i == 2) continue;
                 // Save File
-                saver = new FileSaver(imgs[i]);
+                FileSaver saver = new FileSaver(imgs[i]);
                 saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
                 // Load File
                 XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
@@ -210,7 +205,7 @@ public class Main {
         }
 
         // Close all reamining ImageJs
-        for (int i: indexList) {
+        for (int i : indexList) {
             imgs[i].close();
         }
     }
