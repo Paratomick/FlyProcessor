@@ -1,3 +1,5 @@
+package commands;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.Menus;
@@ -71,7 +73,7 @@ public final class MyWindowLevelTool extends PlugInTool implements ActionListene
         adjustWindowLevel(imp, xScaledValue, yScaledValue );
     }
 
-    void adjustWindowLevel(ImagePlus imp, double xDifference, double yDifference ) {
+    public void adjustWindowLevel(ImagePlus imp, double xDifference, double yDifference) {
         if(imp == null) return;
         //current settings
         double currentWindow = currentMax - currentMin;

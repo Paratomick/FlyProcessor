@@ -1,3 +1,4 @@
+import commands.MyWindowLevelTool;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -6,6 +7,12 @@ import ij.io.FileSaver;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import org.apache.poi.sl.usermodel.PictureData;
 import org.apache.poi.xslf.usermodel.*;
 
@@ -18,7 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Main {
+public class FliegenMain {
     File dir;
     File dirOutput;
     JFileChooser fileChooser;
@@ -35,10 +42,10 @@ public class Main {
     String slideName = "Slide";
 
     public static void main(String[] args) throws IOException {
-        new Main();
+        new FliegenMain();
     }
 
-    public Main() throws IOException {
+    public FliegenMain() throws IOException {
         JFrame frame = new JFrame();
         fileChooser = new JFileChooser(new File(".").getCanonicalPath());
         fileChooser.setDialogTitle("Choose any file in the folder");
