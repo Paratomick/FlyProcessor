@@ -78,7 +78,7 @@ public class ProcessingFly {
             }
             for (File f : files) {                                         // For all pictures in the folder
                 System.out.println(f);
-                Reader lsm_reader = new Reader();                  // load them
+                Reader lsm_reader = new Reader();                          // load them
                 ImagePlus img = lsm_reader.open(f.getPath(), true); // into imagePlus
                 doStuffToPicture(img, withPowerPoint);                     // and do stuff
             }
@@ -188,7 +188,7 @@ public class ProcessingFly {
             }
         }
 
-        // Close all reamining ImageJs
+        // Close all remaining ImageJs
         for (int i : indexList) {
             imgs[i].close();
         }
