@@ -18,7 +18,7 @@ import java.awt.event.MouseEvent;
  * by dragging the mouse over the image on the x axis.  The level is changed
  * by dragging the mouse on the y axis.
  */
-public final class MyWindowLevelTool extends PlugInTool implements ActionListener {
+public final class WindowLevelTool extends PlugInTool implements ActionListener {
     static final int AUTO_THRESHOLD = 5000;
     final String origImg = "Image";	// these are the original images values
     final String abdom = "Chest-Abdomen";
