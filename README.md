@@ -7,5 +7,5 @@ But you will need Java 17 installed on your machine.
 To run the code you will need:
 - Git
 - Maven
-- Java 17
+- Java
 - An IDE, such as IntelliJ or Eclipse
