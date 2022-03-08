@@ -86,7 +86,6 @@ public class ProcessingFly {
         if(withPowerPoint) {
             writePresentation();
         }
-        System.exit(0);
     }
 
     public void doStuffToPicture(ImagePlus img, boolean withPowerPoint) {
