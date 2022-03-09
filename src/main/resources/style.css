@@ -7,7 +7,12 @@ HBox {
     -fx-alignment: center;
 }
 
-Grid {
+Separator {
+    -fx-padding: 10px;
+    -fx-max-width: 600px;
+}
+
+GridPane {
     -fx-alignment: center;
 }
 
@@ -17,4 +22,11 @@ Label {
 
 .title {
     -fx-font-size: 20px;
+    -fx-padding: 0 0 10px 0;
+    -fx-font-weight: bold;
+}
+
+.btnCompute {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
 }

@@ -8,6 +8,7 @@ import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
 import org.apache.poi.sl.usermodel.PictureData;
+import org.apache.poi.sl.usermodel.TextShape;
 import org.apache.poi.xslf.usermodel.*;
 import org.imagearchive.lsm.reader.Reader;
 
@@ -32,6 +33,13 @@ public class ProcessingFly {
 
     String slideName = "Slide";
 
+    boolean withPowerPoint = false;
+    boolean withLabel = false;
+    boolean autoAdjust = true;
+    double adjustXValue = 0;
+    double adjustYValue = 0;
+    double voxelSizeForOverviewPrediction = 0.15;
+
     public static File[] getFilesInFolder(File folder) {
         if (folder.isDirectory()) {                         // Checking if dir is a folder
             File[] dirFiles = folder.listFiles();           // An array of all filenames in the folder.
@@ -50,7 +58,7 @@ public class ProcessingFly {
         return new File[0];
     }
 
-    public ProcessingFly(File folder, boolean withPowerPoint) {
+    public void processFolder(File folder) {
         if (folder == null) {
             System.err.println("No File was given.");
             return;
@@ -80,7 +88,7 @@ public class ProcessingFly {
                 System.out.println(f);
                 Reader lsm_reader = new Reader();                          // load them
                 ImagePlus img = lsm_reader.open(f.getPath(), true); // into imagePlus
-                doStuffToPicture(img, withPowerPoint);                     // and do stuff
+                doStuffToPicture(img);                     // and do stuff
             }
         }
         if(withPowerPoint) {
@@ -88,12 +96,12 @@ public class ProcessingFly {
         }
     }
 
-    public void doStuffToPicture(ImagePlus img, boolean withPowerPoint) {
+    public void doStuffToPicture(ImagePlus img) {
         // ----- READ -----
         // Determine if the img is an overview
         // Reads the number in the Info Property between "Voxel_size_X:" and "µm".
         String voxelSize = ((String) img.getProperty("Info")).split("Voxel_size_X: ")[1].split(" µm")[0];
-        boolean isOverview = Double.parseDouble(voxelSize) > 0.15d; // if that number is bigger then 0.15, we say it's an overview.
+        boolean isOverview = Double.parseDouble(voxelSize) > voxelSizeForOverviewPrediction; // if that number is bigger then 0.15, we say it's an overview.
 
         // Get the stackSize to run the ZProjector with
         // Reads the number in the Info Property between "Z_size:" and the end of the line.
@@ -157,8 +165,12 @@ public class ProcessingFly {
             WindowLevelTool windowLevelTool = new WindowLevelTool();
             indexList.forEach(i -> {
                 windowLevelTool.setupImage(imgs[i], true);
-                windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
-                windowLevelTool.adjustWindowLevel(imgs[i], 0, 0);
+                if(autoAdjust) {
+                    windowLevelTool.betterAutoItemActionPerformed(imgs[i]);
+                    windowLevelTool.adjustWindowLevel(imgs[i], 0, 0);
+                } else {
+                    windowLevelTool.adjustWindowLevel(imgs[i], adjustXValue, adjustYValue);
+                }
             });
 
             // ----- PP -----
@@ -180,7 +192,13 @@ public class ProcessingFly {
                     // Load File
                     XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
                     XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
-                    pShape.setAnchor(new Rectangle(x * 118 + 10, y * 120 + 10, 113, 113));
+                    pShape.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 10, 110, 110));
+                    if(withLabel) {
+                        XSLFTextBox label = currentSlides[i][slide].createTextBox();
+                        XSLFTextRun labelRun = label.setText(imgs[i].getTitle());
+                        labelRun.setFontSize(4.0);
+                        label.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 120, 110, 10));
+                    }
                 }
             } catch (IOException ioe) {
                 System.err.println("Could not find the pictures, that where just saved.");
