@@ -47,8 +47,10 @@ public class ProcessingFly {
             ArrayList<File> fileList = new ArrayList<>();   // New empty List.
             if(dirFiles != null) {                          // Looks if there are files or folders in the folder.
                 for (File f : dirFiles) {
-                    if (!f.isDirectory()) {                     // Filter out all paths, that are directories.
-                        fileList.add(f);    // If you want to filter for filetypes, for example .lsm, you could do that here.
+                    if (!f.isDirectory()) {                 // Filter out all paths, that are directories.
+                        if(f.getName().endsWith(".lsm")) {  // Only add lsm files to the list.
+                            fileList.add(f);    // If you want to filter for filetypes, for example .lsm, you could do that here.
+                        }
                     }
                 }
                 // Array of files, containing all non directory files in the selected folder.
