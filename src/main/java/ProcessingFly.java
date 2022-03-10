@@ -8,7 +8,6 @@ import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
 import org.apache.poi.sl.usermodel.PictureData;
-import org.apache.poi.sl.usermodel.TextShape;
 import org.apache.poi.xslf.usermodel.*;
 import org.imagearchive.lsm.reader.Reader;
 
@@ -60,7 +59,7 @@ public class ProcessingFly {
         return new File[0];
     }
 
-    public void processFolder(File folder) {
+    public void processFolder(File folder) throws IOException {
         if (folder == null) {
             System.err.println("No File was given.");
             return;
@@ -232,15 +231,10 @@ public class ProcessingFly {
         }
     }
 
-    public void writePresentation() {
-        try {
-            FileOutputStream fileOutputStream = new FileOutputStream(dirOutput + "/" + slideName + ".pptx");
-            slideShow.write(fileOutputStream);
-            slideShow.close();
-            fileOutputStream.close();
-        } catch (IOException fileNotFoundException) {
-            System.err.println("There was an error while writing the presentation.");
-            fileNotFoundException.printStackTrace();
-        }
+    public void writePresentation() throws IOException {
+        FileOutputStream fileOutputStream = new FileOutputStream(dirOutput + "/" + slideName + ".pptx");
+        slideShow.write(fileOutputStream);
+        slideShow.close();
+        fileOutputStream.close();
     }
 }

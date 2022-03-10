@@ -1,4 +1,5 @@
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -10,8 +11,16 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 public class GuiFly extends Application {
+
+    private static Alert alertException;
+    private static GridPane gridException;
+    private static Label labelException;
+    private static TextArea textAreaException;
 
     private File selectedFolder = null;
     private int numFilesInFolder = 0;
@@ -175,6 +184,25 @@ public class GuiFly extends Application {
         sliderVoxelSize.setValue(0.15);
         fieldVoxelSize.setText(Double.toString(0.15));
 
+
+        // ----- EXCEPTION DIALOG -----
+        alertException = new Alert(Alert.AlertType.ERROR);
+        alertException.setTitle("Exception Dialog");
+        alertException.setHeaderText("There was an exception in the program");
+        labelException = new Label("The exception stacktrace was:");
+
+        textAreaException = new TextArea("Exception Text should be here.");
+        textAreaException.setEditable(false);
+        textAreaException.setWrapText(true);
+        textAreaException.setMaxWidth(Double.MAX_VALUE);
+        textAreaException.setMaxHeight(Double.MAX_VALUE);
+        GridPane.setVgrow(textAreaException, Priority.ALWAYS);
+        GridPane.setHgrow(textAreaException, Priority.ALWAYS);
+        gridException = new GridPane();
+        gridException.setMaxWidth(Double.MAX_VALUE);
+        gridException.add(labelException, 0, 0);
+        gridException.add(textAreaException, 0,1);
+
         // ----- ACTION LISTENERS / BUTTON CLICKS -----
         // Create Action Listener
         // for the "select Folder" button
@@ -203,12 +231,33 @@ public class GuiFly extends Application {
                 pf.adjustXValue = sliderAdjustX.getValue();
                 pf.adjustYValue = sliderAdjustY.getValue();
                 pf.voxelSizeForOverviewPrediction = sliderVoxelSize.getValue();
-                Thread thread = new Thread(() -> pf.processFolder(selectedFolder));
+                Thread thread = new Thread(() -> {
+                    try {
+                        pf.processFolder(selectedFolder);
+                    } catch (IOException e) {
+                        GuiFly.openExceptionDialog(e);
+                    }
+                });
                 thread.start();
             }
         });
 
         root.getChildren().addAll(labelTitle, separator1, grid1, separator2, grid2, separator3, btnCompute);
         stage.show();
+    }
+
+    public static void openExceptionDialog(Exception e) {
+        Platform.runLater(() -> {
+            alertException.setContentText(e.getMessage());
+
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(stringWriter);
+            e.printStackTrace(printWriter);
+            String exceptionText = stringWriter.toString();
+
+            textAreaException.setText(exceptionText);
+            alertException.getDialogPane().setExpandableContent(gridException);
+            alertException.showAndWait();
+        });
     }
 }
