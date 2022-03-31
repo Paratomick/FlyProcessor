@@ -1,5 +1,6 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.HPos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -21,6 +22,9 @@ public class GuiFly extends Application {
     private static GridPane gridException;
     private static Label labelException;
     private static TextArea textAreaException;
+
+    private static Stage logWindow;
+    private static StringProperty logWindowTextProperty;
 
     private File selectedFolder = null;
     private int numFilesInFolder = 0;
@@ -93,6 +97,7 @@ public class GuiFly extends Application {
 
         Button btnCompute = new Button("Compute the folder");
         btnCompute.getStyleClass().add("btnCompute");
+        Button btnLog = new Button("Open Log");
 
         // Set them into the grid
         grid1.add(labelFolderPathLabel,1, 0, 1, 1);
@@ -203,14 +208,28 @@ public class GuiFly extends Application {
         gridException.add(labelException, 0, 0);
         gridException.add(textAreaException, 0,1);
 
+        // ----- LOG WINDOW -----
+        logWindow = new Stage();
+        logWindow.setTitle("Log");
+        TextArea textAreaLogWindow = new TextArea("");
+        textAreaLogWindow.setEditable(false);
+        textAreaLogWindow.setWrapText(true);
+        textAreaLogWindow.setMaxWidth(Double.MAX_VALUE);
+        textAreaLogWindow.setMaxHeight(Double.MAX_VALUE);
+        GridPane.setVgrow(textAreaLogWindow, Priority.ALWAYS);
+        GridPane.setHgrow(textAreaLogWindow, Priority.ALWAYS);
+        logWindowTextProperty = textAreaLogWindow.textProperty();
+        Scene scene1 = new Scene(textAreaLogWindow, 400, 300);
+        logWindow.setScene(scene1);
+
         // ----- ACTION LISTENERS / BUTTON CLICKS -----
         // Create Action Listener
         // for the "select Folder" button
         btnFolder.setOnAction(actionEvent -> {
-            System.out.println(actionEvent);
+            consoleLogN("Selecting a folder.");
             File chosenFile = fileChooser.showOpenDialog(stage);
             if(chosenFile != null) {
-                System.out.println(chosenFile);
+                consoleLogN(" a file inside the folder has been selected: \n " + chosenFile);
                 labelFolderPath.setText(chosenFile.getParentFile().getPath());
                 selectedFolder = chosenFile.getParentFile();
                 numFilesInFolder = ProcessingFly.getFilesInFolder(selectedFolder).length;
@@ -219,11 +238,14 @@ public class GuiFly extends Application {
         });
         // for the compute button
         btnCompute.setOnAction(actionEvent -> {
-            System.out.println(actionEvent);
+            consoleLogN("Starting computation..");
             if (numFilesInFolder == 0) {
-                System.out.println("No Folder or empty folder has been selected yet.");
+                consoleLogN(" No Folder or empty folder has been selected.");
             } else {
-                System.out.println("Starting operations on the folder and create a PowerPoint.");
+                consoleLogN(" Starting operations on the folder..");
+                if(boxPowerPoint.isSelected()) {
+                    consoleLogN(" with PowerPoint.");
+                }
                 ProcessingFly pf = new ProcessingFly();
                 pf.withPowerPoint = boxPowerPoint.isSelected();
                 pf.withLabel = boxWithLabels.isSelected();
@@ -241,9 +263,30 @@ public class GuiFly extends Application {
                 thread.start();
             }
         });
+        // for the Log button
+        btnLog.setOnAction(actionEvent -> {
+            // Open the log window.
+            if(!logWindow.isShowing()) {
+                logWindow.show();
+            }
+        });
 
-        root.getChildren().addAll(labelTitle, separator1, grid1, separator2, grid2, separator3, btnCompute);
+        root.getChildren().addAll(labelTitle, separator1, grid1, separator2, grid2, separator3, btnCompute, btnLog);
         stage.show();
+    }
+
+    public static void consoleLog(String s) {
+        System.out.print(s);
+        if(logWindowTextProperty != null) {
+            logWindowTextProperty.setValue(logWindowTextProperty.get() + s);
+        }
+    }
+
+    public static void consoleLogN(String s) {
+        System.out.println(s);
+        if(logWindowTextProperty != null) {
+            logWindowTextProperty.setValue(logWindowTextProperty.get() + s + "\n");
+        }
     }
 
     public static void openExceptionDialog(Exception e) {

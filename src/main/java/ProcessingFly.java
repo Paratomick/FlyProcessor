@@ -12,6 +12,7 @@ import org.apache.poi.xslf.usermodel.*;
 import org.imagearchive.lsm.reader.Reader;
 
 import java.awt.*;
+import java.io.Console;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -45,6 +46,7 @@ public class ProcessingFly {
             File[] emptyFileArray = new File[1];            // Empty array to soon write the non directory files to.
             ArrayList<File> fileList = new ArrayList<>();   // New empty List.
             if(dirFiles != null) {                          // Looks if there are files or folders in the folder.
+                GuiFly.consoleLogN("  [getFilesInFolder]: there are " + dirFiles.length + " files in the folder.");
                 for (File f : dirFiles) {
                     if (!f.isDirectory()) {                 // Filter out all paths, that are directories.
                         if(f.getName().endsWith(".lsm")) {  // Only add lsm files to the list.
@@ -54,18 +56,22 @@ public class ProcessingFly {
                 }
                 // Array of files, containing all non directory files in the selected folder.
                 return fileList.toArray(emptyFileArray);
+            } else {
+                GuiFly.consoleLogN("  [getFilesInFolder]: dirFiles == null.");
             }
+        } else {
+            GuiFly.consoleLogN("  [getFilesInFolder]: the file is not a folder.");
         }
         return new File[0];
     }
 
     public void processFolder(File folder) throws IOException {
         if (folder == null) {
-            System.err.println("No File was given.");
+            GuiFly.consoleLogN("No File was given.");
             return;
         }
         dirOutput = new File(folder.getPath() + "/output");
-        System.out.printf("You have selected %s as the folder.\n", folder);
+        GuiFly.consoleLogN(String.format("You have selected %s as the folder.\n", folder));
 
         if (folder.isDirectory()) { // Checking if dir is a folder
             // Array of files, containing all non directory files in the selected folder.
@@ -86,7 +92,7 @@ public class ProcessingFly {
                 dirOutput.mkdir();     // create it.
             }
             for (File f : files) {                                         // For all pictures in the folder
-                System.out.println(f);
+                GuiFly.consoleLogN(f.toString());
                 Reader lsm_reader = new Reader();                          // load them
                 ImagePlus img = lsm_reader.open(f.getPath(), true); // into imagePlus
                 doStuffToPicture(img);                     // and do stuff
@@ -98,6 +104,7 @@ public class ProcessingFly {
     }
 
     public void doStuffToPicture(ImagePlus img) {
+        GuiFly.consoleLogN(" " + img.toString());
         // ----- READ -----
         // Determine if the img is an overview
         // Reads the number in the Info Property between "Voxel_size_X:" and "µm".
@@ -107,6 +114,7 @@ public class ProcessingFly {
         // Get the stackSize to run the ZProjector with
         // Reads the number in the Info Property between "Z_size:" and the end of the line.
         String stackSize = ((String) img.getProperty("Info")).split("Z_size:")[1].split("\n")[0];
+        GuiFly.consoleLogN((String) img.getProperty("Info"));
         if (stackSize.equals("1")) { // if the stack size is 1, we discard the picture.
             img.close();
             return;
@@ -202,7 +210,7 @@ public class ProcessingFly {
                     }
                 }
             } catch (IOException ioe) {
-                System.err.println("Could not find the pictures, that where just saved.");
+                GuiFly.consoleLogN("  [Err] Could not find the pictures, that where just saved.");
             }
         }
 
@@ -210,6 +218,7 @@ public class ProcessingFly {
         for (int i : indexList) {
             imgs[i].close();
         }
+        GuiFly.consoleLogN(" finished img\n");
     }
 
     public void initPresentation(int slides) {
@@ -232,6 +241,7 @@ public class ProcessingFly {
     }
 
     public void writePresentation() throws IOException {
+        GuiFly.consoleLogN(" [writePresentation] creating presentation.");
         FileOutputStream fileOutputStream = new FileOutputStream(dirOutput + "/" + slideName + ".pptx");
         slideShow.write(fileOutputStream);
         slideShow.close();
