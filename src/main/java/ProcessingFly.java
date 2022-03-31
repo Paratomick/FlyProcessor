@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class ProcessingFly {
@@ -47,13 +48,13 @@ public class ProcessingFly {
             ArrayList<File> fileList = new ArrayList<>();   // New empty List.
             if(dirFiles != null) {                          // Looks if there are files or folders in the folder.
                 GuiFly.consoleLogN("  [getFilesInFolder]: there are " + dirFiles.length + " files in the folder.");
-                for (File f : dirFiles) {
+                Arrays.stream(dirFiles).sorted().forEach(f -> { //TODO: Order them by name
                     if (!f.isDirectory()) {                 // Filter out all paths, that are directories.
                         if(f.getName().endsWith(".lsm")) {  // Only add lsm files to the list.
                             fileList.add(f);    // If you want to filter for filetypes, for example .lsm, you could do that here.
                         }
                     }
-                }
+                });
                 // Array of files, containing all non directory files in the selected folder.
                 return fileList.toArray(emptyFileArray);
             } else {
@@ -85,7 +86,7 @@ public class ProcessingFly {
                         break;
                     }
                 }
-                initPresentation(files.length / maxPerSlide + 1);
+                initPresentation((files.length / maxPerSlide) * 2 + 1);
             }
 
             if (!dirOutput.exists()) { // If the output folder does not exist,
@@ -103,7 +104,7 @@ public class ProcessingFly {
         }
     }
 
-    public void doStuffToPicture(ImagePlus img) {
+    public void doStuffToPicture(ImagePlus img) throws IOException {
         GuiFly.consoleLogN(" " + img.toString());
         // ----- READ -----
         // Determine if the img is an overview
@@ -137,6 +138,15 @@ public class ProcessingFly {
         // Create a list with the index of every non-null image.
         List<Integer> indexList = new ArrayList<>();
         for (int i = 0; i < 3; i++) if (imgs[i] != null) indexList.add(i);
+
+        int colors = 0;
+        for(int i = 0; i < 3; i++) {
+            if(imgs[i] != null) colors++;
+        }
+        if(colors < 2) {
+            GuiFly.consoleLogN("  Not enough colors, picture is ignored.");
+            return;
+        }
 
         // ----- CONVERT TO RGB -----
         // Convert c1, c2, c3 to RGB
@@ -183,34 +193,30 @@ public class ProcessingFly {
             });
 
             // ----- PP -----
-            try {
-                if (!isOverview) {
-                    pictureCounter++;
-                } else {
-                    pictureCounter = pictureCounter + (picturesPerSlideWidth - ((pictureCounter + picturesPerSlideWidth) % picturesPerSlideWidth));
-                }
-                int slide = pictureCounter / maxPerSlide;
-                int y = (pictureCounter % maxPerSlide) / picturesPerSlideWidth;
-                int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
+            if (!isOverview) {
+                pictureCounter++;
+            } else {
+                pictureCounter = pictureCounter + (picturesPerSlideWidth - ((pictureCounter + picturesPerSlideWidth) % picturesPerSlideWidth));
+            }
+            int slide = pictureCounter / maxPerSlide;
+            int y = (pictureCounter % maxPerSlide) / picturesPerSlideWidth;
+            int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
-                for (int i : indexList) {
-                    if (i == 2) continue;
-                    // Save File
-                    FileSaver saver = new FileSaver(imgs[i]);
-                    saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
-                    // Load File
-                    XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
-                    XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
-                    pShape.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 10, 110, 110));
-                    if(withLabel) {
-                        XSLFTextBox label = currentSlides[i][slide].createTextBox();
-                        XSLFTextRun labelRun = label.setText(imgs[i].getTitle());
-                        labelRun.setFontSize(4.0);
-                        label.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 120, 110, 10));
-                    }
+            for (int i : indexList) {
+                if (i == 2) continue;
+                // Save File
+                FileSaver saver = new FileSaver(imgs[i]);
+                saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
+                // Load File
+                XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
+                XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
+                pShape.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 10, 110, 110));
+                if(withLabel) {
+                    XSLFTextBox label = currentSlides[i][slide].createTextBox();
+                    XSLFTextRun labelRun = label.setText(imgs[i].getTitle());
+                    labelRun.setFontSize(4.0);
+                    label.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 120, 110, 10));
                 }
-            } catch (IOException ioe) {
-                GuiFly.consoleLogN("  [Err] Could not find the pictures, that where just saved.");
             }
         }
 
