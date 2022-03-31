@@ -48,7 +48,7 @@ public class ProcessingFly {
             ArrayList<File> fileList = new ArrayList<>();   // New empty List.
             if(dirFiles != null) {                          // Looks if there are files or folders in the folder.
                 GuiFly.consoleLogN("  [getFilesInFolder]: there are " + dirFiles.length + " files in the folder.");
-                Arrays.stream(dirFiles).sorted().forEach(f -> { //TODO: Order them by name
+                Arrays.stream(dirFiles).sorted().forEach(f -> {
                     if (!f.isDirectory()) {                 // Filter out all paths, that are directories.
                         if(f.getName().endsWith(".lsm")) {  // Only add lsm files to the list.
                             fileList.add(f);    // If you want to filter for filetypes, for example .lsm, you could do that here.
