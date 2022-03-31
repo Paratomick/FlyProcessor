@@ -8,6 +8,7 @@ import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
 import org.apache.poi.sl.usermodel.PictureData;
+import org.apache.poi.util.IOUtils;
 import org.apache.poi.xslf.usermodel.*;
 import org.imagearchive.lsm.reader.Reader;
 
@@ -86,7 +87,7 @@ public class ProcessingFly {
                         break;
                     }
                 }
-                initPresentation((files.length / maxPerSlide) * 2 + 1);
+                initPresentation(files.length + 1);
             }
 
             if (!dirOutput.exists()) { // If the output folder does not exist,
@@ -203,12 +204,13 @@ public class ProcessingFly {
             int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
             for (int i : indexList) {
-                if (i == 2) continue;
                 // Save File
                 FileSaver saver = new FileSaver(imgs[i]);
                 saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
                 // Load File
-                XSLFPictureData pic = slideShow.addPicture(new File(dirOutput.getPath() + "\\temp.tif"), PictureData.PictureType.TIFF);
+                File pictureFile = new File(dirOutput.getPath() + "\\temp.tif");
+                IOUtils.setByteArrayMaxOverride(3146000);
+                XSLFPictureData pic = slideShow.addPicture(pictureFile, PictureData.PictureType.TIFF); // Error is here.
                 XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
                 pShape.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 10, 110, 110));
                 if(withLabel) {
@@ -239,7 +241,6 @@ public class ProcessingFly {
         currentSlides = new XSLFSlide[4][];
         for (int i = 0; i < 4; i++) {
             currentSlides[i] = new XSLFSlide[slides];
-            if (i == 2) continue;
             for (int j = 0; j < slides; j++) {
                 currentSlides[i][j] = slideShow.createSlide(slideMaster.getLayout(SlideLayout.BLANK));
             }
