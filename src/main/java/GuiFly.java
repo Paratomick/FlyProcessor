@@ -36,7 +36,7 @@ public class GuiFly extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         VBox root = new VBox();
-        Scene scene = new Scene(root, 800, 600);
+        Scene scene = new Scene(root, 800, 700);
         scene.getStylesheets().add("style.css");
         stage.setScene(scene);
         stage.setTitle("Immunofluorescence Picture Processor");
@@ -77,6 +77,8 @@ public class GuiFly extends Application {
 
         CheckBox boxPowerPoint = new CheckBox();
         Label labelPowerPoint = new Label("with PowerPoint");
+        CheckBox boxIncludeBlue = new CheckBox();
+        Label labelIncludeBlue = new Label("include blue");
         CheckBox boxWithLabels = new CheckBox();
         Label labelWithLabels = new Label("with Labels");
         CheckBox boxAutoAdjust = new CheckBox();
@@ -107,27 +109,33 @@ public class GuiFly extends Application {
         grid1.add(labelFileNum,        2, 2, 1, 1);
         grid2.add(boxPowerPoint,       1, 3, 1, 1);
         grid2.add(labelPowerPoint,     2, 3, 1, 1);
-        grid2.add(boxWithLabels,       1, 4, 1, 1);
-        grid2.add(labelWithLabels,     2, 4, 1, 1);
-        grid2.add(boxAutoAdjust,       1, 5, 1, 1);
-        grid2.add(labelAutoAdjust,     2, 5, 1, 1);
-        grid2.add(labelAdjustX,        1, 6, 1, 1);
-        grid2.add(fieldAdjustX,        1, 7, 1, 1);
-        grid2.add(sliderAdjustX,       2, 7, 1, 1);
-        grid2.add(labelAdjustY,        1, 8, 1, 1);
-        grid2.add(fieldAdjustY,        1, 9, 1, 1);
-        grid2.add(sliderAdjustY,       2, 9, 1, 1);
-        grid2.add(labelVoxelSize,      1, 10, 1, 1);
-        grid2.add(fieldVoxelSize,      1, 11, 1, 1);
-        grid2.add(sliderVoxelSize,     2, 11, 1, 1);
+        grid2.add(boxIncludeBlue,      1, 4, 1, 1);
+        grid2.add(labelIncludeBlue,    2, 4, 1, 1);
+        grid2.add(boxWithLabels,       1, 5, 1, 1);
+        grid2.add(labelWithLabels,     2, 5, 1, 1);
+        grid2.add(boxAutoAdjust,       1, 6, 1, 1);
+        grid2.add(labelAutoAdjust,     2, 6, 1, 1);
+        grid2.add(labelAdjustX,        1, 7, 1, 1);
+        grid2.add(fieldAdjustX,        1, 8, 1, 1);
+        grid2.add(sliderAdjustX,       2, 8, 1, 1);
+        grid2.add(labelAdjustY,        1, 9, 1, 1);
+        grid2.add(fieldAdjustY,        1, 10, 1, 1);
+        grid2.add(sliderAdjustY,       2, 10, 1, 1);
+        grid2.add(labelVoxelSize,      1, 11, 1, 1);
+        grid2.add(fieldVoxelSize,      1, 12, 1, 1);
+        grid2.add(sliderVoxelSize,     2, 12, 1, 1);
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select a file inside the folder...");
 
         // Set checkboxes to selected at default
         boxPowerPoint.setSelected(true);
+        boxIncludeBlue.setSelected(false);
         boxWithLabels.setSelected(true);
         boxAutoAdjust.setSelected(true);
+        // Deactivate PowerPoint related boxes if PowerPoint is not selected.
+        boxIncludeBlue.disableProperty().bind(boxPowerPoint.selectedProperty().not());
+        boxWithLabels.disableProperty().bind(boxPowerPoint.selectedProperty().not());
         // Deactivate Sliders, if autoAdjust is enabled
         labelAdjustX.disableProperty().bind(boxAutoAdjust.selectedProperty());
         labelAdjustY.disableProperty().bind(boxAutoAdjust.selectedProperty());
@@ -189,7 +197,6 @@ public class GuiFly extends Application {
         sliderVoxelSize.setValue(0.15);
         fieldVoxelSize.setText(Double.toString(0.15));
 
-
         // ----- EXCEPTION DIALOG -----
         alertException = new Alert(Alert.AlertType.ERROR);
         alertException.setTitle("Exception Dialog");
@@ -248,11 +255,13 @@ public class GuiFly extends Application {
                 }
                 ProcessingFly pf = new ProcessingFly();
                 pf.withPowerPoint = boxPowerPoint.isSelected();
+                pf.includeBlue = boxIncludeBlue.isSelected();
                 pf.withLabel = boxWithLabels.isSelected();
                 pf.autoAdjust = boxAutoAdjust.isSelected();
                 pf.adjustXValue = sliderAdjustX.getValue();
                 pf.adjustYValue = sliderAdjustY.getValue();
                 pf.voxelSizeForOverviewPrediction = sliderVoxelSize.getValue();
+
                 Thread thread = new Thread(() -> {
                     try {
                         pf.processFolder(selectedFolder);

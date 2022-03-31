@@ -7,13 +7,13 @@ import ij.io.FileSaver;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.RGBStackSplitter;
+import ij.process.LUT;
 import org.apache.poi.sl.usermodel.PictureData;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.xslf.usermodel.*;
 import org.imagearchive.lsm.reader.Reader;
 
 import java.awt.*;
-import java.io.Console;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -32,6 +32,7 @@ public class ProcessingFly {
     int maxPerSlide = picturesPerSlideWidth * picturesPerSlideHeight;
 
     XSLFSlide[][] currentSlides;
+    boolean[][] slideUsed;
 
     String slideName = "Slide";
 
@@ -41,6 +42,7 @@ public class ProcessingFly {
     double adjustXValue = 0;
     double adjustYValue = 0;
     double voxelSizeForOverviewPrediction = 0.15;
+    boolean includeBlue = false;
 
     public static File[] getFilesInFolder(File folder) {
         if (folder.isDirectory()) {                         // Checking if dir is a folder
@@ -87,7 +89,7 @@ public class ProcessingFly {
                         break;
                     }
                 }
-                initPresentation(files.length + 1);
+                initPresentation((files.length / picturesPerSlideHeight) + 1);
             }
 
             if (!dirOutput.exists()) { // If the output folder does not exist,
@@ -129,20 +131,26 @@ public class ProcessingFly {
         // Split the open image into c1, c2, c3
         RGBStackSplitter splitter = new RGBStackSplitter();
         splitter.split(imgZ);   // Splits the image
+        LUT[] luts = img.getLuts();
+        //System.out.println(Colors.colorToString(new Color(luts[0].getRGB(255))));
         img.close();            // Closes the original image.
 
+        String[] prefix = new String[]{"C1-MAX_", "C2-MAX_", "C3-MAX_"};
         // Load the open images c1, c2, c3 into ImagePlus Classes
         ImagePlus[] imgs = new ImagePlus[4];
-        imgs[0] = WindowManager.getImage("C3-MAX_" + img.getTitle());
-        imgs[1] = WindowManager.getImage("C2-MAX_" + img.getTitle());
-        imgs[2] = WindowManager.getImage("C1-MAX_" + img.getTitle());
         // Create a list with the index of every non-null image.
         List<Integer> indexList = new ArrayList<>();
-        for (int i = 0; i < 3; i++) if (imgs[i] != null) indexList.add(i);
-
+        // Fill
         int colors = 0;
         for(int i = 0; i < 3; i++) {
-            if(imgs[i] != null) colors++;
+            ImagePlus tempImg = WindowManager.getImage(prefix[i] + img.getTitle());
+            if(tempImg != null) {
+                Color c = new Color(luts[colors].getRGB(255));
+                int channel = c.equals(Color.RED)?0:c.equals(Color.GREEN)?1:2;
+                imgs[channel] = tempImg;
+                indexList.add(channel);
+                colors++;
+            }
         }
         if(colors < 2) {
             GuiFly.consoleLogN("  Not enough colors, picture is ignored.");
@@ -162,7 +170,7 @@ public class ProcessingFly {
         int h = imgStacks[indexList.get(0)].getHeight();
         int s = imgStacks[indexList.get(0)].getSize();
         // Merge c1, c2, c3 to one img
-        ImageStack iss = new RGBStackMerge().mergeStacks(w, h, s, imgStacks[0], imgStacks[1], imgStacks[2], true);
+        ImageStack iss = new RGBStackMerge().mergeStacks(w, h, s, imgStacks[0], imgStacks[1], imgStacks[2], true); // tic: 012, others: 120
         // Put merge into the array and indexList
         imgs[3] = new ImagePlus("MERGE-MAX_" + img.getTitle(), iss);
         imgs[3].show();
@@ -173,7 +181,7 @@ public class ProcessingFly {
         String[] paths = new String[4];
         indexList.forEach(i -> {
             // Create name
-            paths[i] = dirOutput.getPath() + "\\" + imgs[i].getTitle().replace(".lsm", ".tif");
+            paths[i] = dirOutput.getPath() + "/" + imgs[i].getTitle().replace(".lsm", ".tif");
             // Save File
             FileSaver saver = new FileSaver(imgs[i]);
             saver.saveAsTiff(paths[i]);
@@ -204,6 +212,8 @@ public class ProcessingFly {
             int x = (pictureCounter % maxPerSlide) % picturesPerSlideWidth;
 
             for (int i : indexList) {
+                // if includeBlue was not selected, skip the blue channel
+                if(!includeBlue && i == 2) continue;
                 // Save File
                 FileSaver saver = new FileSaver(imgs[i]);
                 saver.saveAsTiff(dirOutput.getPath() + "\\temp.tif");
@@ -212,6 +222,7 @@ public class ProcessingFly {
                 IOUtils.setByteArrayMaxOverride(3146000);
                 XSLFPictureData pic = slideShow.addPicture(pictureFile, PictureData.PictureType.TIFF); // Error is here.
                 XSLFPictureShape pShape = currentSlides[i][slide].createPicture(pic);
+                slideUsed[i][slide] = true;
                 pShape.setAnchor(new Rectangle(x * 118 + 10, y * 130 + 10, 110, 110));
                 if(withLabel) {
                     XSLFTextBox label = currentSlides[i][slide].createTextBox();
@@ -239,15 +250,28 @@ public class ProcessingFly {
         xslfTextShape.setText(slideName);
 
         currentSlides = new XSLFSlide[4][];
+        slideUsed = new boolean[4][];
         for (int i = 0; i < 4; i++) {
             currentSlides[i] = new XSLFSlide[slides];
+            slideUsed[i] = new boolean[slides];
             for (int j = 0; j < slides; j++) {
                 currentSlides[i][j] = slideShow.createSlide(slideMaster.getLayout(SlideLayout.BLANK));
+                slideUsed[i][j] = false;
             }
         }
     }
 
     public void writePresentation() throws IOException {
+        GuiFly.consoleLogN(" [writePresentation] Remove empty Slides");
+        int deletedSlides = 0;
+        for(int i = 0; i < slideUsed.length; i++) {
+            for(int j = 0; j < slideUsed[i].length; j++) {
+                if(!slideUsed[i][j]) {
+                    slideShow.removeSlide(i * slideUsed[i].length + j + 1 - deletedSlides);
+                    deletedSlides++;
+                }
+            }
+        }
         GuiFly.consoleLogN(" [writePresentation] creating presentation.");
         FileOutputStream fileOutputStream = new FileOutputStream(dirOutput + "/" + slideName + ".pptx");
         slideShow.write(fileOutputStream);
